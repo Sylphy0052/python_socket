@@ -18,7 +18,7 @@ class Layer():
             hex_data = hex(data).lstrip('0x')
             str_byte = hex_data
             byte = [int(data, 16) for data in str_byte]
-        while len(byte) != num:
+        while len(byte) != num * 2:
             byte.insert(0, 0)
         return byte
 
@@ -96,6 +96,36 @@ def connect_sock():
     sock.connect(("localhost", 8000))
     return sock
 
+def print_layer3_info(datas, data_length):
+    print('size:', data_length)
+    print('\n--- layer3 ---')
+
+    str_data = ''
+    i = 0
+    for data in datas:
+        if data == 0:
+            if i % 2 == 0:
+                str_data += '0' + str(hex(data)).lstrip('0x')
+            else:
+                str_data += '0'
+        else:
+            str_data += str(hex(data)).lstrip('0x')
+        i = i + 1
+        if i % 2 == 0:
+            str_data += ' '
+        if i % 32 == 0:
+            str_data += '\n'
+            i = 0
+    print(str_data)
+
+def print_layer2_info(layer):
+    print('type:', layer.proto_type)
+    print('len:', layer.length)
+
+def print_layer1_info(layer):
+    print('type:', layer.proto_type)
+    print('len: ', layer.length)
+
 def read_data(file_name):
     data_file = open(file_name, 'r')
     read_file = data_file.read()
@@ -111,7 +141,7 @@ def read_data(file_name):
     return data_length, byte_datas
 
 def send_msg(sock, msg):
-    print(msg)
+    # print(msg)
     send_data = ''
     i = 0
     for data in msg:
@@ -132,15 +162,16 @@ def send_msg(sock, msg):
 def main():
     args = sys.argv
     if len(args) != 3:
-        print(len(args))
+        # print(len(args))
         print("Invalid argument. Needs 2 arguments.")
         sys.exit()
     protocol_type, file_name = int(args[1]), args[2]
     data_length, data = read_data(file_name)
-    print(data)
-    print("size:", data_length)
+    # print(data)
+    print_layer3_info(data, data_length)
     layer3 = Dip(protocol_type, data)
     layer2_data = layer3.execute()
+    print_layer2_info(layer3)
     # print(layer2_data)
     layer1_data = ''
     # print(protocol_type)
@@ -154,7 +185,8 @@ def main():
     elif protocol_type == 2:
         layer2 = Dudp(data_length, layer2_data)
         layer1_data = layer2.execute()
-    print(layer1_data)
+    # print(layer1_data)
+    print_layer1_info(layer2)
     send_msg(connect_sock(), layer1_data)
 
 if __name__ == '__main__':

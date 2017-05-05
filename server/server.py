@@ -24,6 +24,7 @@ class Layer():
 
     def deserialize_data(self, datas):
         str_data = ''
+        # print('data:', datas)
         for data in datas:
             if int(data) < 10:
                 str_data += str(data)
@@ -33,30 +34,35 @@ class Layer():
         return str_data
 
 class Dip(Layer):
-    def __init__(self, proto_type, payload):
-        super().__init__(proto_type)
-        self.version = 1 # 4byte
-        self.ttl = 12345 # 4byte
-        self.payload = payload
+    def __init__(self, datas):
+        self.type = int(self.deserialize_data(datas[0:8]), 16) # 4byte
+        self.version = int(self.deserialize_data(datas[8:16]), 16) # 4byte
+        self.ttl = int(self.deserialize_data(datas[16:24]), 16) # 4byte
+        self.payload = datas[24:]
+        self.datas = datas
+        # print(datas)
+        # print(self.version)
+        # print(self.ttl)
+        # print(self.payload)
 
-    def convert_header_to_byte(self):
-        header = []
-        header += self.convert_byte(self.proto_type, 4)
-        header += self.convert_byte(self.version, 4)
-        header += self.convert_byte(self.ttl, 4)
-        return header
+    def execute(self):
+        # print(self.deserialize_data(self.payload))
+        return self.payload
 
 class Layer2(Layer):
     def __init__(self, datas):
-        self.proto_type = int(self.deserialize_data(datas[0:4]), 16) # 4byte
-        self.length = int(self.deserialize_data(self.payload[4:8]), 16) # 4byte
+        self.proto_type = int(self.deserialize_data(datas[0:8]), 16) # 4byte
+        self.length = int(self.deserialize_data(datas[8:16]), 16) # 4byte
         self.digest = ''
         self.payload = []
         self.datas = datas
+        # print('proto_type:', self.proto_type)
+        # print('length:', self.length)
 
     def calc_digest(self):
         calc_payload = ''
         i = 0
+        # print('calc_digest:', self.payload[12:])
         for data in self.payload[12:]:
             if data == 0:
                 if i % 2 == 0:
@@ -69,6 +75,7 @@ class Layer2(Layer):
             if i % 2 == 0:
                 i = 0
                 calc_payload += ' '
+        # print('payload:', calc_payload)
         return hashlib.md5(calc_payload.encode('utf-8')).hexdigest()
         # print(self.digest)
         # print([int(i, 16) for i in self.digest])
@@ -76,17 +83,22 @@ class Layer2(Layer):
 
     def check_header(self):
         if self.proto_type == 1: # DTCP
-            self.digest = deserialize_data(self.datas[8:24])
-            self.payload = self.datas[24:]
+            self.digest = self.deserialize_data(self.datas[16:48])
+            self.payload = self.datas[48:]
+            # print('digest:', self.digest)
+            # print('payload:', self.payload)
         elif self.proto_type == 2: # DUDP
-            self.payload = self.datas[8:]
+            self.payload = self.datas[16:]
     def check_md5(self):
         if self.digest == self.calc_digest():
             # 成功
             print('Match MD5')
         else:
             # 失敗
+            # print(self.digest)
+            # print(self.calc_digest())
             print('Don\'t match MD5')
+            sys.exit()
 
     def execute(self):
         self.check_header()
@@ -153,7 +165,7 @@ def connect_sock():
     return sock
 
 def receive_data(sock):
-    datas = sock.recv(1024)
+    datas = sock.recv(1060)
     sock.close()
     datas = datas.decode('utf-8').split(' ')
     str_datas = []
@@ -175,14 +187,14 @@ def deserialize_data(datas):
 
 def main():
     recv_data = receive_data(connect_sock())
-    print(recv_data)
+    # print(recv_data)
     protocol_type = deserialize_data(recv_data[0:4])
     # print(protocol_type)
     layer2_data = []
     layer1 = Layer2(recv_data)
     layer2_data = layer1.execute()
     layer3 = Dip(layer2_data)
-    layer3.execute()
+    layer3_data = layer3.execute()
 
 if __name__ == '__main__':
     while(True):
