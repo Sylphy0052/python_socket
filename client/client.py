@@ -6,35 +6,90 @@ import hashlib
 import socket
 import sys
 
-class Dip():
+class Layer():
     class Type(IntEnum):
         DTCP = 1
         DUDP = 2
 
+    def convert_byte(self, data, num):
+        if int(data) < 10:
+            byte = [int(data)]
+        else:
+            hex_data = hex(data).lstrip('0x')
+            str_byte = hex_data
+            byte = [int(data, 16) for data in str_byte]
+        while len(byte) != num:
+            byte.insert(0, 0)
+        return byte
+
+    def execute(self):
+        return self.convert_header_to_byte() + self.payload
+
+class Dip(Layer):
     def __init__(self, proto_type, payload):
-        self.proto_type = proto_type # 4byte
+        self.proto_type = 3
         self.version = 1 # 4byte
-        self.ttl = 123456 # 4byte
+        self.ttl = 12345 # 4byte
         self.payload = payload
 
-class Dtcp():
-    def __init__(self, lentgh, payload):
-        self.proto_type = 3 # 4byte
-        self.length = length # 4byte
-        self.digest = 0 # 16byte
-        self.payload = payload
+    def convert_header_to_byte(self):
+        header = []
+        header += self.convert_byte(self.proto_type, 4)
+        header += self.convert_byte(self.version, 4)
+        header += self.convert_byte(self.ttl, 4)
+        return header
 
-    def calc_digest():
-        self.digest = hashlib.md5(self.payload.encode('utf-8')).hexdigest()
-
-class Dudp():
+class Layer2(Layer):
     def __init__(self, length, payload):
-        self.proto_type = 3 # 4byte
         self.length = length # 4byte
         self.payload = payload
 
-    def toByte():
-        pass
+class Dtcp(Layer2):
+    def __init__(self, length, payload):
+        super().__init__(length, payload)
+        self.proto_type = Layer.Type.DTCP
+        self.digest = 0 # 16byte
+
+    def calc_digest(self):
+        calc_payload = ''
+        i = 0
+        for data in self.payload[12:]:
+            if data == 0:
+                if i % 2 == 0:
+                    calc_payload += '0' + str(hex(data)).lstrip('0x')
+                else:
+                    calc_payload += '0'
+            else:
+                calc_payload += str(hex(data)).lstrip('0x')
+            i = i + 1
+            if i % 2 == 0:
+                i = 0
+                calc_payload += ' '
+        self.digest = hashlib.md5(calc_payload.encode('utf-8')).hexdigest()
+        # print(self.digest)
+        # print([int(i, 16) for i in self.digest])
+        # print(self.digest)
+        return [int(i, 16) for i in self.digest]
+
+
+    def convert_header_to_byte(self):
+        self.calc_digest()
+        header = []
+        header += self.convert_byte(self.proto_type, 4)
+        header += self.convert_byte(self.length, 4)
+        header += self.calc_digest()
+        return header
+
+class Dudp(Layer2):
+    def __init__(self, length, payload):
+        super().__init__(length, payload)
+        self.proto_type = Layer.Type.DUDP
+
+    def convert_header_to_byte(self):
+        header = []
+        header += self.convert_byte(self.proto_type, 4)
+        header += self.convert_byte(self.length, 4)
+        return header
 
 def connect_sock():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -60,7 +115,13 @@ def send_msg(sock, msg):
     send_data = ''
     i = 0
     for data in msg:
-        send_data += str(hex(data)).lstrip('0x')
+        if data == 0:
+            if i % 2 == 0:
+                send_data += '0' + str(hex(data)).lstrip('0x')
+            else:
+                send_data += '0'
+        else:
+            send_data += str(hex(data)).lstrip('0x')
         i = i + 1
         if i % 2 == 0:
             i = 0
@@ -74,10 +135,27 @@ def main():
         print(len(args))
         print("Invalid argument. Needs 2 arguments.")
         sys.exit()
-    protocol_type, file_name = args[1], args[2]
+    protocol_type, file_name = int(args[1]), args[2]
     data_length, data = read_data(file_name)
+    print(data)
     print("size:", data_length)
-    send_msg(connect_sock(), data)
+    layer3 = Dip(protocol_type, data)
+    layer2_data = layer3.execute()
+    # print(layer2_data)
+    layer1_data = ''
+    # print(protocol_type)
+    # print(Layer.Type.DTCP)
+    # if protocol_type == Layer.Type.DTCP: できない？
+    if protocol_type == 1:
+        # print('DTCP')
+        layer2 = Dtcp(data_length, layer2_data)
+        layer1_data = layer2.execute()
+    # elif protocol_type == Layer.Type.DUDP: 同様
+    elif protocol_type == 2:
+        layer2 = Dudp(data_length, layer2_data)
+        layer1_data = layer2.execute()
+    print(layer1_data)
+    send_msg(connect_sock(), layer1_data)
 
 if __name__ == '__main__':
     main()

@@ -1,22 +1,24 @@
-import binascii
+def convert_byte(data, num):
+    print('convert_byte(', data, ',', num, ')')
+    if data < 10: # 0~9
+        print(data)
+        byte = [data]
+    elif data > 9: # A~F
+        # print(hex(data))
+        hex_data = hex(data).lstrip('0x')
+        # print(hex_data)
+        str_byte = hex_data
+        # str_byte = hex(data)
+        byte = [int(data, 16) for data in str_byte]
+    while len(byte) != num:
+        byte.insert(0, 0)
+    return byte
 
-file_name = "text.txt"
-data_file = open(file_name, 'r')
-read_file = data_file.read()
-datas = read_file.replace('\n', ' ')
-datas = datas.split(' ')
-str_datas = []
-str_datas += [data for data in datas]
-byte_datas = []
-for str_data in str_datas:
-    byte_datas += [int(byte_data, 16) for byte_data in str_data]
-data_file.close()
-data_length = len(byte_datas)
-print(byte_datas, '\n', data_length)
+proto_type = 12
+version = 1
+ttl = 12345
+payload = [10, 10, 11, 11, 12, 12, 1, 1, 2, 2, 3, 3]
 
-send_data = ''
-for data in byte_datas:
-    print(hex(data))
-    print(str(hex(data)).lstrip('0x'))
-    # send_data += hex(data)
-print(send_data.encode('utf-8'))
+# hex_ttl = hex(ttl).lstrip('0x')
+
+print(convert_byte(proto_type, 4))
