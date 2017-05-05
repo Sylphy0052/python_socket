@@ -27,7 +27,7 @@ class Layer():
 
 class Dip(Layer):
     def __init__(self, proto_type, payload):
-        self.proto_type = proto_type
+        self.proto_type = 3
         self.version = 1 # 4byte
         self.ttl = 12345 # 4byte
         self.payload = payload
@@ -47,13 +47,13 @@ class Layer2(Layer):
 class Dtcp(Layer2):
     def __init__(self, length, payload):
         super().__init__(length, payload)
-        self.proto_type = 3
+        self.proto_type = Layer.Type.DTCP
         self.digest = 0 # 16byte
 
     def calc_digest(self):
         calc_payload = ''
         i = 0
-        for data in self.payload:
+        for data in self.payload[12:]:
             if data == 0:
                 if i % 2 == 0:
                     calc_payload += '0' + str(hex(data)).lstrip('0x')
@@ -69,8 +69,7 @@ class Dtcp(Layer2):
         # print(self.digest)
         # print([int(i, 16) for i in self.digest])
         # print(self.digest)
-        self.digest = [int(i, 16) for i in self.digest]
-        return self.digest
+        return [int(i, 16) for i in self.digest]
 
 
     def convert_header_to_byte(self):
@@ -84,7 +83,7 @@ class Dtcp(Layer2):
 class Dudp(Layer2):
     def __init__(self, length, payload):
         super().__init__(length, payload)
-        self.proto_type = 3
+        self.proto_type = Layer.Type.DUDP
 
     def convert_header_to_byte(self):
         header = []
@@ -94,7 +93,7 @@ class Dudp(Layer2):
 
 def connect_sock():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(("localhost", 8080))
+    sock.connect(("localhost", 8000))
     return sock
 
 def print_layer3_info(datas, data_length):
@@ -120,29 +119,12 @@ def print_layer3_info(datas, data_length):
     print(str_data)
 
 def print_layer2_info(layer):
-    print('\n--- layer2 ---')
     print('type:', layer.proto_type)
     print('len:', layer.length)
-    digest = ''
-    i = 0
-    for data in layer.digest:
-        if data == 0:
-            digest += '0' + str(hex(data)).lstrip('0x')
-        else:
-            digest += str(hex(data)).lstrip('0x')
-        i = i + 1
-        if i % 2 == 0:
-            digest += ' '
-        if i % 32 == 0:
-            digest += '\n'
-            i = 0
-    print('md5:', digest.rstrip('\n'))
 
 def print_layer1_info(layer):
-    print('\n--- layer1 ---')
     print('type:', layer.proto_type)
-    print('version: ', layer.version)
-    print('ttl:', layer.ttl)
+    print('len: ', layer.length)
 
 def read_data(file_name):
     data_file = open(file_name, 'r')
@@ -174,7 +156,6 @@ def send_msg(sock, msg):
         if i % 2 == 0:
             i = 0
             send_data += ' '
-    # print(send_data.encode('utf-8'))
     sock.send(send_data.encode('utf-8'))
     sock.close()
 
@@ -188,26 +169,24 @@ def main():
     data_length, data = read_data(file_name)
     # print(data)
     print_layer3_info(data, data_length)
-
-    layer2_data = ''
-    if protocol_type == 1:
-        # print('DTCP')
-        layer2 = Dtcp(data_length, data)
-        layer2_data = layer2.execute()
-    # elif protocol_type == Layer.Type.DUDP: 同様
-    elif protocol_type == 2:
-        layer2 = Dudp(data_length, layer2_data)
-        layer2_data = layer2.execute()
-    # print(layer1_data)
-    print_layer2_info(layer2)
-
-    layer1 = Dip(protocol_type, layer2_data)
-    layer1_data = layer1.execute()
-    print_layer1_info(layer1)
+    layer3 = Dip(protocol_type, data)
+    layer2_data = layer3.execute()
+    print_layer2_info(layer3)
     # print(layer2_data)
+    layer1_data = ''
     # print(protocol_type)
     # print(Layer.Type.DTCP)
     # if protocol_type == Layer.Type.DTCP: できない？
+    if protocol_type == 1:
+        # print('DTCP')
+        layer2 = Dtcp(data_length, layer2_data)
+        layer1_data = layer2.execute()
+    # elif protocol_type == Layer.Type.DUDP: 同様
+    elif protocol_type == 2:
+        layer2 = Dudp(data_length, layer2_data)
+        layer1_data = layer2.execute()
+    # print(layer1_data)
+    print_layer1_info(layer2)
     send_msg(connect_sock(), layer1_data)
 
 if __name__ == '__main__':
