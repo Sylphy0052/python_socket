@@ -24,11 +24,13 @@ class Layer():
 
     def deserialize_data(self, datas):
         str_data = ''
+        # print('data:', datas)
         for data in datas:
             if int(data) < 10:
                 str_data += str(data)
             else:
                 str_data += hex(data).lstrip('0x')
+        # print(str_data)
         return str_data
 
 class Dip(Layer):
@@ -38,8 +40,13 @@ class Dip(Layer):
         self.ttl = int(self.deserialize_data(datas[16:24]), 16) # 4byte
         self.payload = datas[24:]
         self.datas = datas
+        # print(datas)
+        # print(self.version)
+        # print(self.ttl)
+        # print(self.payload)
 
     def execute(self):
+        # print(self.payload)
         return self.proto_type, self.payload
 
 class Layer2(Layer):
@@ -51,6 +58,8 @@ class Layer2(Layer):
         self.datas = datas
         self.protocol_type = protocol_type
         self.flg_md5 = True
+        # print('proto_type:', self.proto_type)
+        # print('length:', self.length)
 
     def calc_digest(self):
         calc_payload = ''
@@ -67,15 +76,22 @@ class Layer2(Layer):
             if i % 2 == 0:
                 i = 0
                 calc_payload += ' '
+        # print('payload:', calc_payload)
         result = hashlib.md5(calc_payload.encode('utf-8')).hexdigest()
         self.digest = [int(i, 16) for i in result]
         return result
+        # print(self.digest)
+        # print([int(i, 16) for i in self.digest])
+        # return [int(i, 16) for i in self.digest]
 
     def check_header(self):
         if self.protocol_type == 1: # DTCP
             self.digest = self.deserialize_data(self.datas[16:48])
             self.payload = self.datas[48:]
+            # print(self.payload)
             self.check_md5()
+            # print('digest:', self.digest)
+            # print('payload:', self.payload)
         elif self.protocol_type == 2: # DUDP
             self.payload = self.datas[16:]
         else:
@@ -83,12 +99,19 @@ class Layer2(Layer):
             sys.exit()
 
     def check_md5(self):
+        # print(self.digest)
+        # print(self.calc_digest())
         if self.digest == self.calc_digest():
             # 成功
+            # print('Match MD5')
             self.flg_md5 = True
         else:
             # 失敗
+            # print(self.digest)
+            # print(self.calc_digest())
+            # print('Don\'t match MD5')
             self.flg_md5 = False
+            # sys.exit()
 
     def execute(self):
         self.check_header()
@@ -120,6 +143,7 @@ def deserialize_data(datas):
             str_data += str(data)
         else:
             str_data += hex(data).lstrip('0x')
+    # print(str_data)
     return int(str_data, 16)
 
 def print_layer3_info(datas):
@@ -177,6 +201,8 @@ def print_layer1_info(layer):
 
 def main():
     recv_data = receive_data(connect_sock())
+    # protocol_type = deserialize_data(recv_data[0:8])
+    # print(protocol_type)
     layer2_data = []
     layer1 = Dip(recv_data)
     protocol_type, layer2_data = layer1.execute()
@@ -189,6 +215,7 @@ def main():
 def debug_print(datas):
     calc_payload = ''
     i = 0
+    # print('calc_digest:', self.payload[12:])
     for data in datas:
         if data == 0:
             if i % 2 == 0:

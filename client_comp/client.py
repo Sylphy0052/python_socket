@@ -66,6 +66,9 @@ class Dtcp(Layer2):
                 i = 0
                 calc_payload += ' '
         self.digest = hashlib.md5(calc_payload.encode('utf-8')).hexdigest()
+        # print(self.digest)
+        # print([int(i, 16) for i in self.digest])
+        # print(self.digest)
         self.digest = [int(i, 16) for i in self.digest]
         return self.digest
 
@@ -156,6 +159,7 @@ def read_data(file_name):
     return data_length, byte_datas
 
 def send_msg(sock, msg):
+    # print(msg)
     send_data = ''
     i = 0
     for data in msg:
@@ -170,32 +174,40 @@ def send_msg(sock, msg):
         if i % 2 == 0:
             i = 0
             send_data += ' '
+    # print(send_data.encode('utf-8'))
     sock.send(send_data.encode('utf-8'))
     sock.close()
 
 def main():
     args = sys.argv
     if len(args) != 3:
+        # print(len(args))
         print("Invalid argument. Needs 2 arguments.")
         sys.exit()
     protocol_type, file_name = int(args[1]), args[2]
     data_length, data = read_data(file_name)
+    # print(data)
     print_layer3_info(data, data_length)
 
     layer2_data = ''
-    # if protocol_type == Layer.Type.DTCP: できない？
     if protocol_type == 1:
+        # print('DTCP')
         layer2 = Dtcp(data_length, data)
         layer2_data = layer2.execute()
     # elif protocol_type == Layer.Type.DUDP: 同様
     elif protocol_type == 2:
         layer2 = Dudp(data_length, layer2_data)
         layer2_data = layer2.execute()
+    # print(layer1_data)
     print_layer2_info(layer2)
 
     layer1 = Dip(protocol_type, layer2_data)
     layer1_data = layer1.execute()
     print_layer1_info(layer1)
+    # print(layer2_data)
+    # print(protocol_type)
+    # print(Layer.Type.DTCP)
+    # if protocol_type == Layer.Type.DTCP: できない？
     send_msg(connect_sock(), layer1_data)
 
 if __name__ == '__main__':
