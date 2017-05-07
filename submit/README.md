@@ -8,8 +8,8 @@
 `python client.py type text_name`
 
     - type:
-        1. DTCP
-        - DUDP
+        - 1: DTCP
+        - 2: DUDP
 
     - for example:`python client.py 1 text.txt`
 

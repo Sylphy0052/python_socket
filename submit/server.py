@@ -3,8 +3,11 @@
 import binascii
 from enum import IntEnum
 import hashlib
+import multiprocessing
 import socket
 import sys
+import threading
+import time
 
 class Layer():
     class Type(IntEnum):
@@ -94,17 +97,16 @@ class Layer2(Layer):
         self.check_header()
         return self.payload
 
-def connect_sock():
+def configure_sock():
     serv_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    serv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
     serv_sock.bind(("localhost", 8080))
-    serv_sock.listen(1)
-    sock, addr = serv_sock.accept()
-    print("Connected by " + str(addr))
-    return sock
+    serv_sock.listen(128)
+    # sock, addr = serv_sock.accept()
+    # print("Connected by " + str(addr))
+    return serv_sock
 
-def receive_data(sock):
-    datas = sock.recv(2048)
-    sock.close()
+def receive_data(datas):
     datas = datas.decode('utf-8').split(' ')
     str_datas = []
     str_datas += [data for data in datas]
@@ -175,8 +177,8 @@ def print_layer1_info(layer):
     print('version: ', layer.version)
     print('ttl:', layer.ttl)
 
-def main():
-    recv_data = receive_data(connect_sock())
+def do_thread(data):
+    recv_data = receive_data(data)
     layer2_data = []
     layer1 = Dip(recv_data)
     protocol_type, layer2_data = layer1.execute()
@@ -186,24 +188,52 @@ def main():
     print_layer2_info(layer2)
     print_layer3_info(layer2_data)
 
-def debug_print(datas):
-    calc_payload = ''
-    i = 0
-    for data in datas:
-        if data == 0:
-            if i % 2 == 0:
-                calc_payload += '0' + str(hex(data)).lstrip('0x')
-            else:
-                calc_payload += '0'
-        else:
-            calc_payload += str(hex(data)).lstrip('0x')
-        i = i + 1
-        if i % 2 == 0:
-            i = 0
-            calc_payload += ' '
-    print('dbg: ', calc_payload)
+def worker_thread(serv_sock):
+    while True:
+        clientsocket, (client_address, client_port) = serv_sock.accept()
+        print('Connect: {0}:{1}'.format(client_address, client_port))
+
+        while True:
+            try:
+                message = clientsocket.recv(2018)
+                if message == b'':
+                    continue
+                print('Recv: from {0}:{1}'.format(client_address, client_port))
+                do_thread(message)
+
+            except OSError:
+                break
+
+            if len(message) == 0:
+                break
+
+            print('\n--- fin ---\nWaiting for connecting client...')
+
+        clientsocket.close()
+        print('Bye: {0}:{1}'.format(client_address, client_port))
+
+def worker_process(serv_sock):
+    NUMBER_OF_THREADS = 10
+    for _ in range(NUMBER_OF_THREADS):
+        thread = threading.Thread(target=worker_thread, args=(serv_sock,))
+        thread.start()
+
+    while True:
+        time.sleep(1)
+
+def main():
+    serv_sock = configure_sock()
+    NUMBER_OF_PROCESSES = multiprocessing.cpu_count()
+    print('Waiting for connecting client...')
+    for _ in range(NUMBER_OF_PROCESSES):
+        process = multiprocessing.Process(target=worker_process, args=(serv_sock,))
+        process.daemon = True
+        process.start()
+
+    while(True):
+        time.sleep(1)
+
+    serv_sock.close()
 
 if __name__ == '__main__':
-    while(True):
-        print('Waiting for connecting client...')
-        main()
+    main()
