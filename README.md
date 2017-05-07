@@ -2,19 +2,23 @@
 
 ## 使用方法
 - サーバの起動
-`python server/server.py`
+`python server.py`
 
 - クライアントの起動
-`python client/client.py type text_name`
+`python client.py type text_name`
 
     - type:
         1. DTCP
         - DUDP
 
-    - for example:`python client/client.py 1 text.txt`
+    - for example:`python client.py 1 text.txt`
 
 ## 環境
 - python 3.6.0
+
+## 工夫した点
+- Pythonで実装したので，Windows,Mac,LinuxのどのOSでも使用可能
+-
 
 ## 条件
 1. TCPを使ってTCP/IPのレイヤーアーキテクチャを模擬したプログラムの作成
@@ -62,7 +66,6 @@
 ### Client
 1. ファイル読み込み
 - 長さ(size)の取得
-- layer3処理
 - layer2処理
 - layer1処理
 - ソケット通信経路の確保
@@ -73,4 +76,3 @@
 - データ受信
 - layer1処理
 - layer2処理
-- layer3処理
