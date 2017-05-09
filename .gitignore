@@ -1,4 +1,4 @@
-server_comp/
-submit/
-client_comp/
-test/
+server_comp/*
+submit/*
+client_comp/*
+test/*
