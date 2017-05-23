@@ -116,24 +116,25 @@ def print_layer3_info(datas, data_length):
             i = 0
     print(str_data)
 
-def print_layer2_info(layer):
+def print_layer2_info(layer, protocol_type):
     print('\n--- layer2 ---')
     print('type:', layer.proto_type)
     print('len:', layer.length)
-    digest = ''
-    i = 0
-    for data in layer.digest:
-        if data == 0:
-            digest += '0' + str(hex(data)).lstrip('0x')
-        else:
-            digest += str(hex(data)).lstrip('0x')
-        i = i + 1
-        if i % 2 == 0:
-            digest += ' '
-        if i % 32 == 0:
-            digest += '\n'
-            i = 0
-    print('md5:', digest.rstrip('\n'))
+    if protocol_type == 1:
+        digest = ''
+        i = 0
+        for data in layer.digest:
+            if data == 0:
+                digest += '0' + str(hex(data)).lstrip('0x')
+            else:
+                digest += str(hex(data)).lstrip('0x')
+            i = i + 1
+            if i % 2 == 0:
+                digest += ' '
+            if i % 32 == 0:
+                digest += '\n'
+                i = 0
+        print('md5:', digest.rstrip('\n'))
 
 def print_layer1_info(layer):
     print('\n--- layer1 ---')
@@ -189,9 +190,9 @@ def main():
         layer2_data = layer2.execute()
     # elif protocol_type == Layer.Type.DUDP: 同様
     elif protocol_type == 2:
-        layer2 = Dudp(data_length, layer2_data)
+        layer2 = Dudp(data_length, data)
         layer2_data = layer2.execute()
-    print_layer2_info(layer2)
+    print_layer2_info(layer2, protocol_type)
 
     layer1 = Dip(protocol_type, layer2_data)
     layer1_data = layer1.execute()
